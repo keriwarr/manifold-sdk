@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "An SDK for the Manifold Markets API",
   "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "engines": {
+    "node": ">=14"
+  },
   "author": "Keri Warr <keri@warr.ca>",
   "license": "MIT",
   "packageManager": "yarn@3.2.2",
@@ -15,16 +19,39 @@
     "sourcemap": true,
     "clean": true,
     "dts": true,
-    "format": ["esm"]
+    "format": [
+      "esm"
+    ]
   },
   "scripts": {
-    "build": "tsup"
+    "start": "tsup --watch",
+    "build": "tsup",
+    "postinstall": "husky install",
+    "prepack": "pinst --disable",
+    "postpack": "pinst --enable"
+  },
+  "lint-staged": {
+    "**/*": [
+      "prettier --write --ignore-unknown"
+    ],
+    "**/*.ts": [
+      "eslint --fix",
+      "prettier --write --ignore-unknown"
+    ]
   },
   "dependencies": {
     "node-fetch": "^3.2.10"
   },
   "devDependencies": {
     "@types/node": "^18.6.3",
+    "@typescript-eslint/eslint-plugin": "^5.32.0",
+    "@typescript-eslint/parser": "^5.32.0",
+    "eslint": "^8.21.0",
+    "eslint-config-prettier": "^8.5.0",
+    "husky": "^8.0.1",
+    "lint-staged": "^13.0.3",
+    "pinst": "^3.0.0",
+    "prettier": "2.7.1",
     "tsup": "^6.2.1",
     "typescript": "^4.7.4"
   }
