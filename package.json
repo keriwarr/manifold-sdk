@@ -4,5 +4,6 @@
   "description": "An SDK for the Manifold Markets API",
   "main": "dist/index.js",
   "author": "Keri Warr <keri@warr.ca>",
-  "license": "MIT"
+  "license": "MIT",
+  "packageManager": "yarn@3.2.2"
 }
