@@ -1,6 +1,6 @@
 {
   "name": "manifold-sdk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An SDK for the Manifold Markets API",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -55,5 +55,17 @@
     "prettier": "2.7.1",
     "tsup": "^6.2.1",
     "typescript": "^4.7.4"
-  }
+  },
+  "homepage": "https://github.com/keriwarr/manifold-sdk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keriwarr/manifold-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/keriwarr/manifold-sdk/issues"
+  },
+  "keywords": [
+    "TypeScript",
+    "SDK"
+  ]
 }
