@@ -31,11 +31,11 @@
     "postpack": "pinst --enable"
   },
   "lint-staged": {
-    "**/*": [
+    "*.ts": [
+      "eslint --fix",
       "prettier --write --ignore-unknown"
     ],
-    "**/*.ts": [
-      "eslint --fix",
+    "*": [
       "prettier --write --ignore-unknown"
     ]
   },
