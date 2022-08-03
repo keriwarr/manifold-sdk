@@ -1,0 +1,8 @@
+{
+  "name": "manifold-sdk",
+  "version": "1.0.0",
+  "description": "An SDK for the Manifold Markets API",
+  "main": "dist/index.js",
+  "author": "Keri Warr <keri@warr.ca>",
+  "license": "MIT"
+}
