@@ -24,8 +24,10 @@ const logError = (message: Error) => {
   console.error(message);
 };
 
-const wrappedFetch = async <RetVal>(...args: Parameters<typeof fetch>) => {
-  log(`fetching '${args[0]}'...`);
+export const wrappedFetch = async <RetVal>(
+  ...args: Parameters<typeof fetch>
+) => {
+  log(`${args[1]?.method} '${args[0]}' ...`);
   const resp = await fetch(...args);
 
   const contentType = resp.headers.get("content-type");
@@ -437,6 +439,48 @@ export class Manifold {
 
     return this.post<CreateMarketResponse, typeof body>({
       path: "/market",
+      body,
+    });
+  }
+
+  public createBet(body: {
+    amount: number;
+    contractId: string;
+    outcome: string;
+    limitProp?: number;
+  }) {
+    return this.post<Bet, typeof body>({
+      path: "/bet",
+      body,
+    });
+  }
+
+  public resolveMarket({
+    marketId,
+    ...body
+  }: {
+    marketId: string;
+    outcome: "YES" | "NO" | "MKT" | "CANCEL" | number;
+    probabilityInt?: number;
+    resolutions?: Array<{ answer: string; pct: number }>;
+    value?: number;
+  }) {
+    return this.post<{ betId: string }, typeof body>({
+      path: `/market/${marketId}/resolve`,
+      body,
+    });
+  }
+
+  public sellShares({
+    marketId,
+    ...body
+  }: {
+    marketId: string;
+    outcome?: "YES" | "NO";
+    shares?: number;
+  }) {
+    return this.post<{ status: "success" }, typeof body>({
+      path: `/market/${marketId}/sell`,
       body,
     });
   }
