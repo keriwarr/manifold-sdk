@@ -28,7 +28,8 @@
     "build": "tsup",
     "postinstall": "husky install",
     "prepack": "pinst --disable",
-    "postpack": "pinst --enable"
+    "postpack": "pinst --enable",
+    "lint": "yarn eslint --fix . && yarn prettier --write ."
   },
   "lint-staged": {
     "*.ts": [
