@@ -12,6 +12,8 @@ export class ManifoldError extends Error {
   }
 }
 
+const isEmpty = (obj: Record<string, unknown>) => Object.keys(obj).length === 0;
+
 const log = (message: string) => {
   if (process.env.NODE_ENV === "production") return;
 
@@ -80,13 +82,13 @@ interface NumericCreateMarketArgs extends GenericCreateMarketArgs {
   max: number;
 }
 
-type CreateMarketArgs =
+export type CreateMarketArgs =
   | BinaryCreateMarketArgs
   | FreeResponseCreateMarketArgs
   | NumericCreateMarketArgs;
 
 // TODO: get build to output comments?
-interface User {
+export interface User {
   id: string; // user's unique id
   createdTime: number;
 
@@ -127,14 +129,16 @@ interface User {
   followerCountCached?: number;
 }
 
-interface Bet {
+export interface Bet extends Partial<LimitProps> {
   id: string;
+  userId: string;
   contractId: string;
+  createdTime: number;
 
   amount: number; // bet size; negative if SELL bet
   loanAmount?: number;
   outcome: string;
-  shares: number; // dynamic parimutuel pool weight; negative if SELL bet
+  shares: number; // dynamic parimutuel pool weight or fixed ; negative if SELL bet
 
   probBefore: number;
   probAfter: number;
@@ -142,6 +146,7 @@ interface Bet {
   sale?: {
     amount: number; // amount user makes from sale
     betId: string; // id of bet being sold
+    // TODO: add sale time?
   };
 
   fees?: {
@@ -152,11 +157,42 @@ interface Bet {
 
   isSold?: boolean; // true if this BUY bet has been sold
   isAnte?: boolean;
-
-  createdTime: number;
+  isLiquidityProvision?: boolean;
+  isRedemption?: boolean;
 }
 
-interface Comment {
+export type NumericBet = Bet & {
+  value: number;
+  allOutcomeShares: { [outcome: string]: number };
+  allBetAmounts: { [outcome: string]: number };
+};
+
+// Binary market limit order.
+export type LimitBet = Bet & LimitProps;
+
+interface LimitProps {
+  orderAmount: number; // Amount of limit order.
+  limitProb: number; // [0, 1]. Bet to this probability.
+  isFilled: boolean; // Whether all of the bet amount has been filled.
+  isCancelled: boolean; // Whether to prevent any further fills.
+  // A record of each transaction that partially (or fully) fills the orderAmount.
+  // I.e. A limit order could be filled by partially matching with several bets.
+  // Non-limit orders can also be filled by matching with multiple limit orders.
+  fills: fill[];
+}
+
+export type fill = {
+  // The id the bet matched against, or null if the bet was matched by the pool.
+  matchedBetId: string | null;
+  amount: number;
+  shares: number;
+  timestamp: number;
+  // If the fill is a sale, it means the matching bet has shares of the same outcome.
+  // I.e. -fill.shares === matchedBet.shares
+  isSale?: boolean;
+};
+
+export interface Comment {
   userName: string;
   userUsername: string;
   id: string;
@@ -167,7 +203,7 @@ interface Comment {
   contractId: string;
 }
 
-interface Answer {
+export interface Answer {
   createdTime: number;
   avatarUrl: string;
   id: string;
@@ -180,12 +216,12 @@ interface Answer {
   probability: number;
 }
 
-interface FullMarket extends LiteMarket {
+export interface FullMarket extends LiteMarket {
   bets: Bet[];
   comments: Comment[];
   answers?: Answer[];
 }
-interface LiteMarket {
+export interface LiteMarket {
   // Unique identifer for this market
   id: string;
 
@@ -245,7 +281,7 @@ interface CreateMarketResponse extends Omit<LiteMarket, "url" | "probability"> {
   };
 }
 
-interface Group {
+export interface Group {
   id: string;
   name: string;
   about?: string;
@@ -284,7 +320,7 @@ export class Manifold {
     const fullpath = (() => {
       const pathname = `${BASE_URL}/api/v0${path}`;
 
-      if (!params) return pathname;
+      if (!params || isEmpty(params)) return pathname;
 
       return `${pathname}?${new URLSearchParams(params).toString()}`;
     })();
@@ -390,6 +426,22 @@ export class Manifold {
       path: "/markets",
       params,
     });
+  }
+
+  public async getAllMarkets() {
+    const allMarkets = [];
+    let before: string | undefined = undefined;
+
+    for (;;) {
+      const markets: LiteMarket[] = await this.getMarkets({ before });
+
+      allMarkets.push(...markets);
+      before = markets[markets.length - 1].id;
+
+      if (markets.length < 1000) break;
+    }
+
+    return allMarkets;
   }
 
   public getBets({
