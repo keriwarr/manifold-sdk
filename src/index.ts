@@ -1,8 +1,12 @@
-import fetch from "node-fetch";
+const env = (() => {
+  if (typeof process === "undefined") return null;
+  if (process.env.NODE_ENV === "production") return "production";
+  return "not-production";
+})();
 
 const BASE_URL = (() => {
-  if (process.env.NODE_ENV === "production") return "https://manifold.markets";
-  return "https://dev.manifold.markets";
+  if (env === "not-production") return "https://dev.manifold.markets";
+  return "https://manifold.markets";
 })();
 
 export class NetworkError extends Error {
@@ -28,13 +32,13 @@ export class ManifoldError extends NetworkError {
 const isEmpty = (obj: Record<string, unknown>) => Object.keys(obj).length === 0;
 
 const log = (message: string) => {
-  if (process.env.NODE_ENV === "production") return;
+  if (env === "production") return;
 
   console.log(message);
 };
 
 const logError = (message: Error) => {
-  if (process.env.NODE_ENV === "production") return;
+  if (env === "production") return;
 
   console.error(message);
 };
