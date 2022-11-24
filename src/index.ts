@@ -5,9 +5,22 @@ const BASE_URL = (() => {
   return "https://dev.manifold.markets";
 })();
 
-export class ManifoldError extends Error {
-  constructor(public statusCode: number, public errorResponse: unknown) {
-    super(`[${statusCode}]: ${JSON.stringify(errorResponse, null, 2)}`);
+export class NetworkError extends Error {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(message: string, public resp: any) {
+    super(message);
+    Object.setPrototypeOf(this, NetworkError.prototype);
+  }
+}
+
+export class ManifoldError extends NetworkError {
+  constructor(
+    public statusCode: number,
+    public errorResponse: unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resp: any
+  ) {
+    super(`[${statusCode}]: ${JSON.stringify(errorResponse, null, 2)}`, resp);
     Object.setPrototypeOf(this, ManifoldError.prototype);
   }
 }
@@ -35,17 +48,24 @@ export const wrappedFetch = async <RetVal>(
   const contentType = resp.headers.get("content-type");
 
   if (!contentType || contentType.indexOf("application/json") === -1) {
-    const error = new Error(
-      `Unexpectedly received non-JSON response: ${await resp.text()}`
-    );
-    logError(error);
-    throw error;
+    if (resp.ok) {
+      const error = new NetworkError(
+        `Unexpectedly received non-JSON response: ${await resp.text()}`,
+        resp
+      );
+      logError(error);
+      throw error;
+    } else {
+      const error = new ManifoldError(resp.status, resp.text(), resp);
+      logError(error);
+      throw error;
+    }
   }
 
   const json = await resp.json();
 
   if (!resp.ok) {
-    const error = new ManifoldError(resp.status, json);
+    const error = new ManifoldError(resp.status, json, resp);
     logError(error);
     throw error;
   }
@@ -61,7 +81,7 @@ interface GenericCreateMarketArgs {
   descriptionMarkdown?: string;
   descriptionHtml?: string;
   // The time at which the market will close, represented as milliseconds since the epoch.
-  closeTime: number;
+  closeTime?: number;
   // An array of string tags for the market.
   tags?: string[];
   visibility?: "public" | "unlisted";
@@ -398,7 +418,7 @@ export class Manifold {
     return this.get<User>({ path: "/me", requiresAuth: true });
   }
 
-  public getGroups({ availableToUserId }: { availableToUserId?: string }) {
+  public getGroups({ availableToUserId }: { availableToUserId?: string } = {}) {
     const params = {
       ...(availableToUserId && { availableToUserId }),
     };
@@ -450,25 +470,50 @@ export class Manifold {
     }
   }
 
-  public getMarketBets({ marketId }: { marketId: string }) {
-    return this.get<Bet[]>({ path: `/market/${marketId}/bets` });
-  }
-
-  public getMarketComments({ marketId }: { marketId: string }) {
-    return this.get<Comment[]>({ path: `/market/${marketId}/comments` });
+  public getComments({
+    marketId,
+    marketSlug,
+  }:
+    | { marketId: string; marketSlug?: never }
+    | { marketId?: never; marketSlug: string }) {
+    if (marketId) {
+      return this.get<Comment[], { contractId: string }>({
+        path: `/comments`,
+        params: { contractId: marketId },
+      });
+    } else if (marketSlug) {
+      return this.get<Comment[], { contractSlug: string }>({
+        path: `/comments`,
+        params: { contractSlug: marketSlug },
+      });
+    } else {
+      throw new Error("Need slug or id to fetch market comments");
+    }
   }
 
   public getUsers() {
     return this.get<User[]>({ path: "/users" });
   }
 
-  public createBet(body: {
+  public createBet({
+    amount,
+    marketId,
+    outcome,
+    limitProb,
+  }: {
     amount: number;
-    contractId: string;
+    marketId: string;
     outcome: string;
-    limitProp?: number;
+    limitProb?: number;
   }) {
-    return this.post<Bet, typeof body>({
+    const body = {
+      amount,
+      contractId: marketId,
+      outcome,
+      ...(limitProb && { limitProb }),
+    };
+
+    return this.post<{ betId: string }, typeof body>({
       path: "/bet",
       body,
     });
@@ -476,32 +521,13 @@ export class Manifold {
 
   public cancelBet({ id }: { id: string }) {
     return this.post<unknown, undefined>({
-      path: `/bet/cancel${id}`,
+      path: `/bet/cancel/${id}`,
       body: undefined,
     });
   }
 
   // Creates a new market on behalf of the authorized user.
-  public createMarket({ description, ...otherArgs }: CreateMarketArgs) {
-    const body = {
-      ...otherArgs,
-
-      description: {
-        type: "doc",
-        content: [
-          {
-            type: "paragraph",
-            content: [
-              {
-                type: "text",
-                text: description,
-              },
-            ],
-          },
-        ],
-      },
-    };
-
+  public createMarket(body: CreateMarketArgs) {
     return this.post<CreateMarketResponse, typeof body>({
       path: "/market",
       body,
@@ -516,7 +542,7 @@ export class Manifold {
     amount: number;
   }) {
     return this.post<unknown, { amount: number }>({
-      path: `market/${marketId}/add-liquidity`,
+      path: `/market/${marketId}/add-subsidy`,
       body: { amount },
     });
   }
@@ -591,18 +617,24 @@ export class Manifold {
 
   public getBets({
     username,
-    market,
+    userId,
+    marketId,
+    marketSlug,
     limit,
     before,
   }: {
     username?: string;
-    market?: string;
+    userId?: string;
+    marketId?: string;
+    marketSlug?: string;
     limit?: number;
     before?: string;
   }) {
     const params = {
       ...(username && { username }),
-      ...(market && { market }),
+      ...(userId && { userId }),
+      ...(marketId && { contractId: marketId }),
+      ...(marketSlug && { contractSlug: marketSlug }),
       ...(limit && { limit: limit.toString() }),
       ...(before && { before }),
     };
