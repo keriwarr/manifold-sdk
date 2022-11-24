@@ -433,7 +433,7 @@ export class Manifold {
     let before: string | undefined = undefined;
 
     for (;;) {
-      const markets: LiteMarket[] = await this.getMarkets({ before });
+      const markets: LiteMarket[] = await this.getMarkets({ before, limit: 1000 });
 
       allMarkets.push(...markets);
       before = markets[markets.length - 1].id;
