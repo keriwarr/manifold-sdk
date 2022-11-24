@@ -542,7 +542,7 @@ export class Manifold {
     amount: number;
   }) {
     return this.post<unknown, { amount: number }>({
-      path: `/market/${marketId}/add-subsidy`,
+      path: `/market/${marketId}/add-liquidity`,
       body: { amount },
     });
   }
