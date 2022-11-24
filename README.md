@@ -2,8 +2,6 @@
 
 A simple wrapper around the manifold markets API: https://docs.manifold.markets/api
 
-Very hastily done, expect breaking changes in future releases (and in the underlying API).
-
 ### Usage
 
 ```typescript
@@ -44,3 +42,13 @@ const bet = await manifold.createBet({
 
 - introducing classes representing objects such as users, markets, and bets, with convenience methods.
 - better types
+- use older version of node-fetch, to support commonjs
+- or just demand that the user supplies fetch, enable usage in browser
+
+## Local dev
+
+```
+yarn start
+# elsewhere:
+yarn add manifold-sdk@portal:<path_to_this_dir>
+```
