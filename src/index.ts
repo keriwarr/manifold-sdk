@@ -1,345 +1,43 @@
-const env = (() => {
-  if (typeof process === "undefined") return null;
-  if (process.env.NODE_ENV === "production") return "production";
-  return "not-production";
+import {
+  Bet,
+  CreateMarketArgs,
+  CreateMarketResponse,
+  FullMarket,
+  Group,
+  LiteMarket,
+  User,
+} from "./types";
+import { wrappedFetch } from "./wrappedFetch";
+import { ENV } from "./env";
+
+// we will point to manifold's dev API if and only if the environment has been
+// explicitly set to something other than "production".
+const DEFAULT_API_URL_ROOT = (() => {
+  const PROD_API_URL_ROOT = "https://manifold.markets/api/v0";
+  const DEV_API_URL_ROOT = "https://dev.manifold.markets/api/v0";
+
+  if (ENV === "production") return PROD_API_URL_ROOT;
+  if (ENV === undefined) return PROD_API_URL_ROOT;
+  return DEV_API_URL_ROOT;
 })();
-
-const BASE_URL = (() => {
-  if (env === "not-production") return "https://dev.manifold.markets";
-  return "https://manifold.markets";
-})();
-
-export class NetworkError extends Error {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(message: string, public resp: any) {
-    super(message);
-    Object.setPrototypeOf(this, NetworkError.prototype);
-  }
-}
-
-export class ManifoldError extends NetworkError {
-  constructor(
-    public statusCode: number,
-    public errorResponse: unknown,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resp: any
-  ) {
-    super(`[${statusCode}]: ${JSON.stringify(errorResponse, null, 2)}`, resp);
-    Object.setPrototypeOf(this, ManifoldError.prototype);
-  }
-}
-
-const isEmpty = (obj: Record<string, unknown>) => Object.keys(obj).length === 0;
-
-const log = (message: string) => {
-  if (env === "production") return;
-
-  console.log(message);
-};
-
-const logError = (message: Error) => {
-  if (env === "production") return;
-
-  console.error(message);
-};
-
-export const wrappedFetch = async <RetVal>(
-  ...args: Parameters<typeof fetch>
-) => {
-  log(`${args[1]?.method} '${args[0]}' ...`);
-  const resp = await fetch(...args);
-
-  const contentType = resp.headers.get("content-type");
-
-  if (!contentType || contentType.indexOf("application/json") === -1) {
-    if (resp.ok) {
-      const error = new NetworkError(
-        `Unexpectedly received non-JSON response: ${await resp.text()}`,
-        resp
-      );
-      logError(error);
-      throw error;
-    } else {
-      const error = new ManifoldError(resp.status, resp.text(), resp);
-      logError(error);
-      throw error;
-    }
-  }
-
-  const json = await resp.json();
-
-  if (!resp.ok) {
-    const error = new ManifoldError(resp.status, json, resp);
-    logError(error);
-    throw error;
-  }
-
-  return json as RetVal;
-};
-
-interface GenericCreateMarketArgs {
-  // The headline question for the market.
-  question: string;
-  // A long description describing the rules for the market.
-  description?: string;
-  descriptionMarkdown?: string;
-  descriptionHtml?: string;
-  // The time at which the market will close, represented as milliseconds since the epoch.
-  closeTime?: number;
-  // An array of string tags for the market.
-  tags?: string[];
-  visibility?: "public" | "unlisted";
-  groupId?: string;
-}
-
-interface BinaryCreateMarketArgs extends GenericCreateMarketArgs {
-  outcomeType: "BINARY";
-  // between 1 and 99 inclusive
-  initialProb: number;
-}
-
-interface FreeResponseCreateMarketArgs extends GenericCreateMarketArgs {
-  outcomeType: "FREE_RESPONSE";
-}
-
-interface PseudoNumericCreateMarketArgs extends GenericCreateMarketArgs {
-  outcomeType: "PSEUDO_NUMERIC";
-  // The minimum value that the market may resolve to.
-  min: number;
-  // The maximum value that the market may resolve to.
-  max: number;
-  isLogScale: boolean;
-  initialValue: number;
-}
-
-interface MultipleChoiceCreateMarketArgs extends GenericCreateMarketArgs {
-  outcomeType: "MULTIPLE_CHOICE";
-  answers: string[];
-}
-
-export type CreateMarketArgs =
-  | BinaryCreateMarketArgs
-  | FreeResponseCreateMarketArgs
-  | PseudoNumericCreateMarketArgs
-  | MultipleChoiceCreateMarketArgs;
-
-// TODO: get build to output comments?
-export interface User {
-  id: string; // user's unique id
-  createdTime: number;
-
-  name: string; // display name, may contain spaces
-  username: string; // username, used in urls
-  // keri: wasn't present in dev. making partial
-  url?: string; // link to user's profile
-  avatarUrl?: string;
-
-  bio?: string;
-  bannerUrl?: string;
-  website?: string;
-  twitterHandle?: string;
-  discordHandle?: string;
-
-  // Note: the following are here for convenience only and may be removed in the future.
-  balance: number;
-  totalDeposits: number;
-  // keri: wasn't present in dev. making partial
-  totalPnLCached?: number;
-
-  // maybe guaranteed? no idea
-  creatorVolumeCached?: {
-    allTime: number;
-    weekly: number;
-    daily: number;
-    monthly: number;
-  };
-  profitCached?: {
-    allTime: number;
-    weekly: number;
-    daily: number;
-    monthly: number;
-  };
-
-  // only for /me
-  followedCategories?: string[];
-  followerCountCached?: number;
-}
-
-export interface Bet extends Partial<LimitProps> {
-  id: string;
-  userId: string;
-  contractId: string;
-  createdTime: number;
-
-  amount: number; // bet size; negative if SELL bet
-  loanAmount?: number;
-  outcome: string;
-  shares: number; // dynamic parimutuel pool weight or fixed ; negative if SELL bet
-
-  probBefore: number;
-  probAfter: number;
-
-  sale?: {
-    amount: number; // amount user makes from sale
-    betId: string; // id of bet being sold
-    // TODO: add sale time?
-  };
-
-  fees?: {
-    liquidityFee: number;
-    creatorFee: number;
-    platformFee: number;
-  };
-
-  isSold?: boolean; // true if this BUY bet has been sold
-  isAnte?: boolean;
-  isLiquidityProvision?: boolean;
-  isRedemption?: boolean;
-}
-
-export type NumericBet = Bet & {
-  value: number;
-  allOutcomeShares: { [outcome: string]: number };
-  allBetAmounts: { [outcome: string]: number };
-};
-
-// Binary market limit order.
-export type LimitBet = Bet & LimitProps;
-
-interface LimitProps {
-  orderAmount: number; // Amount of limit order.
-  limitProb: number; // [0, 1]. Bet to this probability.
-  isFilled: boolean; // Whether all of the bet amount has been filled.
-  isCancelled: boolean; // Whether to prevent any further fills.
-  // A record of each transaction that partially (or fully) fills the orderAmount.
-  // I.e. A limit order could be filled by partially matching with several bets.
-  // Non-limit orders can also be filled by matching with multiple limit orders.
-  fills: fill[];
-}
-
-export type fill = {
-  // The id the bet matched against, or null if the bet was matched by the pool.
-  matchedBetId: string | null;
-  amount: number;
-  shares: number;
-  timestamp: number;
-  // If the fill is a sale, it means the matching bet has shares of the same outcome.
-  // I.e. -fill.shares === matchedBet.shares
-  isSale?: boolean;
-};
-
-export interface Comment {
-  userName: string;
-  userUsername: string;
-  id: string;
-  userAvatarUrl: string;
-  text: string;
-  createdTime: number;
-  userId: string;
-  contractId: string;
-}
-
-export interface Answer {
-  createdTime: number;
-  avatarUrl: string;
-  id: string;
-  username: string;
-  number: number;
-  name: string;
-  contractId: string;
-  text: string;
-  userId: string;
-  probability: number;
-}
-
-export interface FullMarket extends LiteMarket {
-  // bets and comments removed!
-  // bets: Bet[];
-  // comments: Comment[];
-
-  answers?: Answer[]; // dpm-2 markets only
-  description: unknown; // Rich text content. See https://tiptap.dev/guide/output#option-1-json
-  textDescription: string; // string description without formatting, images, or embeds
-}
-export interface LiteMarket {
-  // Unique identifier for this market
-  id: string;
-
-  // Attributes about the creator
-  creatorUsername: string;
-  creatorName: string;
-  createdTime: number; // milliseconds since epoch
-  creatorAvatarUrl?: string;
-
-  // Market attributes. All times are in milliseconds since epoch
-  closeTime?: number; // Min of creator's chosen date, and resolutionTime
-  question: string;
-  description: unknown; // FIXME: ...
-
-  // A list of tags on each market. Any user can add tags to any market.
-  // This list also includes the predefined categories shown as filters on the home page.
-  tags: string[];
-
-  // Note: This url always points to https://manifold.markets, regardless of what instance the api is running on.
-  // This url includes the creator's username, but this doesn't need to be correct when constructing valid URLs.
-  //   i.e. https://manifold.markets/Austin/test-market is the same as https://manifold.markets/foo/test-market
-  url: string;
-
-  outcomeType: CreateMarketArgs["outcomeType"]; // BINARY, FREE_RESPONSE, or NUMERIC
-  mechanism: "dpm-2" | "cpmm-1";
-
-  probability: number;
-  // keri: might be nice to discriminate the type by outcomeType. e.g. the only outcomes in the pool are "YES" and "NO" for binary
-  pool: Record<string, number>; // For CPMM markets, the number of shares in the liquidity pool. For DPM markets, the amount of mana invested in each answer.
-  p?: number; // CPMM markets only, probability constant in y^p * n^(1-p) = k
-  totalLiquidity?: number; // CPMM markets only, the amount of mana deposited into the liquidity pool
-
-  volume: number;
-  volume7Days: number;
-  volume24Hours: number;
-
-  isResolved: boolean;
-  resolutionTime?: number;
-  resolution?: string;
-  resolutionProbability?: number; // Used for BINARY markets resolved to MKT
-}
-
-interface CreateMarketResponse extends Omit<LiteMarket, "url" | "probability"> {
-  slug: string; // keri: don't know for sure this is guaranteed to be present but I sure hope it is...
-
-  creatorId?: string;
-
-  lowercaseTags?: string[];
-
-  initialProbability?: number;
-
-  visibility?: string;
-  collectedFees?: {
-    creatorFee: number;
-    liquidityFee: number;
-    platformFee: number;
-  };
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  about?: string;
-  createdTime: number;
-  chatDisabled: boolean;
-  contractIds: string[];
-  creatorId: string;
-  memberIds: string[];
-  mostRecentActivityTime: number;
-  slug: string;
-  anyoneCanJoin: boolean;
-  type: string;
-}
 
 export class Manifold {
-  constructor(public apiKey?: string) {}
+  /**
+   * @param apiKey `apiKey` may be omitted, in which case only unauthenticated
+   * endpoints may be used
+   * @param apiUrlRoot `apiUrlRoot` defaults to //manifold.markets when NODE_ENV
+   * is undefined or is set to production and to //dev.manifold.markets
+   * otherwise
+   */
+  constructor(
+    public apiKey?: string | undefined,
+    public apiUrlRoot: string = DEFAULT_API_URL_ROOT
+  ) {}
 
-  public get<
+  /**
+   * Executes a GET request against the given path with the given params
+   */
+  public _get<
     RetVal,
     Params extends Record<string, string> | undefined = undefined
   >({
@@ -353,30 +51,23 @@ export class Manifold {
     requiresAuth?: boolean;
     apiKey?: string;
   }) {
-    if (requiresAuth && !apiKey) {
-      throw new Error("Missing API Key");
+    let url = this.buildUrl(path);
+    if (params && Object.keys(params).length > 0) {
+      url += `?${new URLSearchParams(params).toString()}`;
     }
 
-    const fullPath = (() => {
-      const pathname = `${BASE_URL}/api/v0${path}`;
-
-      if (!params || isEmpty(params)) return pathname;
-
-      return `${pathname}?${new URLSearchParams(params).toString()}`;
-    })();
-
-    return wrappedFetch<RetVal>(fullPath, {
+    return wrappedFetch<RetVal>(url, {
       method: "GET",
-
       headers: {
-        ...(requiresAuth && {
-          Authorization: `Key ${apiKey}`,
-        }),
+        ...this.buildAuthHeaders({ apiKey, requiresAuth }),
       },
     });
   }
 
-  public post<RetVal, Body>({
+  /**
+   * Executes a POST request against the given path with the given body
+   */
+  public _post<RetVal, Body>({
     path,
     body,
     requiresAuth = true,
@@ -387,21 +78,15 @@ export class Manifold {
     requiresAuth?: boolean;
     apiKey?: string;
   }) {
-    if (requiresAuth && !apiKey) {
-      throw new Error("Missing API Key");
-    }
+    const url = this.buildUrl(path);
 
-    return wrappedFetch<RetVal>(`${BASE_URL}/api/v0${path}`, {
+    return wrappedFetch<RetVal>(url, {
       method: "POST",
-
       headers: {
-        ...(requiresAuth && {
-          Authorization: `Key ${apiKey}`,
-        }),
+        ...this.buildAuthHeaders({ apiKey, requiresAuth }),
         "Content-Type": "application/json",
       },
-
-      ...(body && { body: JSON.stringify(body) }),
+      ...(body !== undefined && { body: JSON.stringify(body) }),
     });
   }
 
@@ -409,24 +94,25 @@ export class Manifold {
     username,
     id,
   }: { username: string; id?: never } | { username?: never; id: string }) {
-    if (username) {
-      return this.get<User>({ path: `/user/${username}` });
-    } else if (id) {
-      return this.get<User>({ path: `/user/by-id/${id}` });
+    let path: string;
+
+    if (username !== undefined) {
+      path = `/user/${username}`;
+    } else if (id !== undefined) {
+      path = `/user/by-id/${id}`;
     } else {
       throw new Error("Need username or id to fetch user");
     }
+
+    return this._get<User>({ path });
   }
 
   public getMe() {
-    return this.get<User>({ path: "/me", requiresAuth: true });
+    return this._get<User>({ path: "/me", requiresAuth: true });
   }
 
-  public getGroups({ availableToUserId }: { availableToUserId?: string } = {}) {
-    const params = {
-      ...(availableToUserId && { availableToUserId }),
-    };
-    return this.get<Group[], typeof params>({
+  public getGroups(params: { availableToUserId?: string } = {}) {
+    return this._get<Group[], typeof params>({
       path: "/groups",
       params,
     });
@@ -436,26 +122,35 @@ export class Manifold {
     slug,
     id,
   }: { slug: string; id?: never } | { slug?: never; id: string }) {
-    if (slug) {
-      return this.get<Group>({ path: `/group/${slug}` });
-    } else if (id) {
-      return this.get<Group>({ path: `/group/by-id/${id}` });
+    let path: string;
+
+    if (slug !== undefined) {
+      path = `/group/${slug}`;
+    } else if (id !== undefined) {
+      path = `/group/by-id/${id}`;
     } else {
       throw new Error("Need slug or id to fetch group");
     }
+
+    return this._get<Group>({ path });
   }
 
   public getGroupMarkets({ groupId }: { groupId: string }) {
-    return this.get<LiteMarket[]>({ path: `/group/by-id/${groupId}/markets` });
+    return this._get<LiteMarket[]>({ path: `/group/by-id/${groupId}/markets` });
   }
 
-  public getMarkets({ limit, before }: { limit?: number; before?: string }) {
+  public getMarkets({
+    limit,
+    ...restParams
+  }: {
+    limit?: number;
+    before?: string;
+  }) {
     const params = {
-      ...(limit && { limit: limit.toString() }),
-      ...(before && { before }),
+      ...restParams,
+      ...(limit !== undefined && { limit: limit.toString() }),
     };
-
-    return this.get<LiteMarket[], typeof params>({
+    return this._get<LiteMarket[], typeof params>({
       path: "/markets",
       params,
     });
@@ -465,13 +160,17 @@ export class Manifold {
     slug,
     id,
   }: { slug: string; id?: never } | { slug?: never; id: string }) {
-    if (slug) {
-      return this.get<FullMarket>({ path: `/slug/${slug}` });
-    } else if (id) {
-      return this.get<FullMarket>({ path: `/market/${id}` });
+    let path: string;
+
+    if (slug !== undefined) {
+      path = `/slug/${slug}`;
+    } else if (id !== undefined) {
+      path = `/market/${id}`;
     } else {
       throw new Error("Need slug or id to fetch market");
     }
+
+    return this._get<FullMarket>({ path });
   }
 
   public getComments({
@@ -480,30 +179,29 @@ export class Manifold {
   }:
     | { marketId: string; marketSlug?: never }
     | { marketId?: never; marketSlug: string }) {
-    if (marketId) {
-      return this.get<Comment[], { contractId: string }>({
-        path: `/comments`,
-        params: { contractId: marketId },
-      });
-    } else if (marketSlug) {
-      return this.get<Comment[], { contractSlug: string }>({
-        path: `/comments`,
-        params: { contractSlug: marketSlug },
-      });
+    let params: { contractId: string } | { contractSlug: string };
+
+    if (marketId !== undefined) {
+      params = { contractId: marketId };
+    } else if (marketSlug !== undefined) {
+      params = { contractSlug: marketSlug };
     } else {
       throw new Error("Need slug or id to fetch market comments");
     }
+
+    return this._get<Comment[], typeof params>({
+      path: `/comments`,
+      params,
+    });
   }
 
   public getUsers() {
-    return this.get<User[]>({ path: "/users" });
+    return this._get<User[]>({ path: "/users" });
   }
 
   public createBet({
-    amount,
     marketId,
-    outcome,
-    limitProb,
+    ...restParams
   }: {
     amount: number;
     marketId: string;
@@ -511,20 +209,18 @@ export class Manifold {
     limitProb?: number;
   }) {
     const body = {
-      amount,
+      ...restParams,
       contractId: marketId,
-      outcome,
-      ...(limitProb && { limitProb }),
     };
 
-    return this.post<{ betId: string }, typeof body>({
+    return this._post<{ betId: string }, typeof body>({
       path: "/bet",
       body,
     });
   }
 
   public cancelBet({ id }: { id: string }) {
-    return this.post<unknown, undefined>({
+    return this._post<unknown, undefined>({
       path: `/bet/cancel/${id}`,
       body: undefined,
     });
@@ -532,7 +228,7 @@ export class Manifold {
 
   // Creates a new market on behalf of the authorized user.
   public createMarket(body: CreateMarketArgs) {
-    return this.post<CreateMarketResponse, typeof body>({
+    return this._post<CreateMarketResponse, typeof body>({
       path: "/market",
       body,
     });
@@ -540,27 +236,27 @@ export class Manifold {
 
   public addLiquidity({
     marketId,
-    amount,
+    ...body
   }: {
     marketId: string;
     amount: number;
   }) {
-    return this.post<unknown, { amount: number }>({
+    return this._post<unknown, typeof body>({
       path: `/market/${marketId}/add-liquidity`,
-      body: { amount },
+      body,
     });
   }
 
   public closeMarket({
     marketId,
-    closeTime,
+    ...body
   }: {
     marketId: string;
     closeTime?: number;
   }) {
-    return this.post<unknown, { closeTime?: number }>({
+    return this._post<unknown, typeof body>({
       path: `/market/${marketId}/close`,
-      body: { closeTime },
+      body,
     });
   }
 
@@ -574,7 +270,7 @@ export class Manifold {
     resolutions?: Array<{ answer: string; pct: number }>;
     value?: number;
   }) {
-    return this.post<{ betId: string }, typeof body>({
+    return this._post<{ betId: string }, typeof body>({
       path: `/market/${marketId}/resolve`,
       body,
     });
@@ -588,7 +284,7 @@ export class Manifold {
     outcome?: "YES" | "NO";
     shares?: number;
   }) {
-    return this.post<{ status: "success" }, typeof body>({
+    return this._post<{ status: "success" }, typeof body>({
       path: `/market/${marketId}/sell`,
       body,
     });
@@ -596,9 +292,7 @@ export class Manifold {
 
   public createComment({
     marketId,
-    content,
-    html,
-    markdown,
+    ...restBody
   }: {
     marketId: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -607,25 +301,19 @@ export class Manifold {
     markdown?: string;
   }) {
     const body = {
+      ...restBody,
       contractId: marketId,
-      ...(content && { content }),
-      ...(html && { html }),
-      ...(markdown && { markdown }),
     };
 
-    return this.post<Comment, typeof body>({
+    return this._post<Comment, typeof body>({
       path: `/comment`,
       body: body,
     });
   }
 
   public getBets({
-    username,
-    userId,
-    marketId,
-    marketSlug,
     limit,
-    before,
+    ...restParams
   }: {
     username?: string;
     userId?: string;
@@ -635,15 +323,11 @@ export class Manifold {
     before?: string;
   }) {
     const params = {
-      ...(username && { username }),
-      ...(userId && { userId }),
-      ...(marketId && { contractId: marketId }),
-      ...(marketSlug && { contractSlug: marketSlug }),
-      ...(limit && { limit: limit.toString() }),
-      ...(before && { before }),
+      ...restParams,
+      ...(limit !== undefined && { limit: limit.toString() }),
     };
 
-    return this.get<Bet[], typeof params>({
+    return this._get<Bet[], typeof params>({
       path: "/bets",
       params,
     });
@@ -666,5 +350,34 @@ export class Manifold {
     }
 
     return allMarkets;
+  }
+
+  /** Private Members */
+
+  private buildUrl(path: string) {
+    let url = this.apiUrlRoot;
+
+    if (!path.startsWith("/")) {
+      url += "/";
+    }
+
+    url += path;
+
+    return url;
+  }
+
+  private buildAuthHeaders({
+    apiKey,
+    requiresAuth,
+  }: {
+    apiKey: string | undefined;
+    requiresAuth: boolean;
+  }) {
+    return {
+      ...(requiresAuth &&
+        apiKey && {
+          Authorization: `Key ${apiKey}`,
+        }),
+    };
   }
 }

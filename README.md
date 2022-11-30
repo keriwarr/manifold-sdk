@@ -42,8 +42,6 @@ const bet = await manifold.createBet({
 
 - introducing classes representing objects such as users, markets, and bets, with convenience methods.
 - better types
-- use older version of node-fetch, to support commonjs
-- or just demand that the user supplies fetch, enable usage in browser
 
 ## Local dev
 

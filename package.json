@@ -20,7 +20,8 @@
     "clean": true,
     "dts": true,
     "format": [
-      "esm"
+      "esm",
+      "cjs"
     ]
   },
   "scripts": {
