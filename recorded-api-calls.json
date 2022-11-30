@@ -1,0 +1,38 @@
+[
+  {
+    "req": {
+      "url": "https://dev.manifold.markets/api/v0/market/pdcWgwpzV4RsJjQGVq9v",
+      "method": "GET",
+      "headers": {},
+      "body": ""
+    },
+    "res": {
+      "headers": {
+        "content-length": "762",
+        "content-type": "application/json; charset=utf-8",
+        "x-matched-path": "/api/v0/market/[id]"
+      },
+      "status": 200,
+      "statusText": "OK",
+      "body": "{\"id\":\"pdcWgwpzV4RsJjQGVq9v\",\"creatorId\":\"6hHpzvRG0pMq8PNJs7RZj2qlZGn2\",\"creatorUsername\":\"IanPhilips\",\"creatorName\":\"Ian Philips\",\"createdTime\":1662137501423,\"creatorAvatarUrl\":\"https://lh3.googleusercontent.com/a-/AOh14GhGa0Vhb3LTBXbd2fGfekbG5clPQSVe59Xh35CrKw=s96-c\",\"closeTime\":1672556340000,\"question\":\"beeeep bop!!\",\"tags\":[],\"url\":\"https://dev.manifold.markets/IanPhilips/beeeep-bop\",\"pool\":{\"NO\":164.933181784985,\"YES\":251.21962727663342},\"probability\":0.4943964167632742,\"p\":0.5982964194849217,\"totalLiquidity\":220,\"outcomeType\":\"BINARY\",\"mechanism\":\"cpmm-1\",\"volume\":3611.53214493227,\"volume24Hours\":771.0727149682358,\"isResolved\":false,\"lastUpdatedTime\":1669770416783,\"description\":{\"content\":[{\"type\":\"paragraph\"}],\"type\":\"doc\"},\"textDescription\":\"\"}"
+    }
+  },
+  {
+    "req": {
+      "url": "https://dev.manifold.markets/api/v0/user/by-id/6hHpzvRG0pMq8PNJs7RZj2qlZGn2",
+      "method": "GET",
+      "headers": {},
+      "body": ""
+    },
+    "res": {
+      "headers": {
+        "content-length": "533",
+        "content-type": "application/json; charset=utf-8",
+        "x-matched-path": "/api/v0/user/by-id/[id]"
+      },
+      "status": 200,
+      "statusText": "OK",
+      "body": "{\"id\":\"6hHpzvRG0pMq8PNJs7RZj2qlZGn2\",\"createdTime\":1668811545395,\"name\":\"Ian Philips\",\"username\":\"IanPhilips\",\"url\":\"https://dev.manifold.markets/IanPhilips\",\"avatarUrl\":\"https://lh3.googleusercontent.com/a-/AOh14GhGa0Vhb3LTBXbd2fGfekbG5clPQSVe59Xh35CrKw=s96-c\",\"website\":\"Ian 166jyvn\",\"twitterHandle\":\"twitter.com/hello\",\"discordHandle\":\"\",\"balance\":18874.01890726862,\"totalDeposits\":19028.373403357284,\"profitCached\":{\"daily\":-8.236514072297723,\"monthly\":-3211195.190873912,\"weekly\":-52.27065260231029,\"allTime\":4144.743784203452}}"
+    }
+  }
+]

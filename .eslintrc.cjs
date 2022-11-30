@@ -12,5 +12,6 @@ module.exports = {
   root: true,
   rules: {
     "@typescript-eslint/strict-boolean-expressions": "warn",
+    "@typescript-eslint/ban-ts-comment": "off",
   },
 };

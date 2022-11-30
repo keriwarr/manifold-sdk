@@ -30,7 +30,8 @@
     "postinstall": "husky install",
     "prepack": "pinst --disable",
     "postpack": "pinst --enable",
-    "lint": "yarn eslint --fix . && yarn prettier --write ."
+    "lint": "yarn eslint --fix . && yarn prettier --write .",
+    "test": "jest"
   },
   "lint-staged": {
     "*.ts": [
@@ -42,15 +43,23 @@
     ]
   },
   "devDependencies": {
+    "@jest/globals": "^29.3.1",
+    "@types/jest": "^29.2.3",
     "@types/node": "^18.11.9",
+    "@types/node-fetch": "^2.6.2",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
     "@typescript-eslint/parser": "^5.32.0",
     "eslint": "^8.21.0",
     "eslint-config-prettier": "^8.5.0",
+    "fetch-intercept": "^2.4.0",
     "husky": "^8.0.1",
+    "jest": "^29.3.1",
     "lint-staged": "^13.0.3",
+    "node-fetch": "^2.6.7",
     "pinst": "^3.0.0",
     "prettier": "2.7.1",
+    "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1",
     "tsup": "^6.2.1",
     "typescript": "^4.7.4"
   },
