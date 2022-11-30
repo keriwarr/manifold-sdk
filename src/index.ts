@@ -25,8 +25,8 @@ export class Manifold {
   /**
    * @param apiKey `apiKey` may be omitted, in which case only unauthenticated
    * endpoints may be used
-   * @param apiUrlRoot `apiUrlRoot` defaults to //manifold.markets when NODE_ENV
-   * is undefined or is set to production and to //dev.manifold.markets
+   * @param apiUrlRoot `apiUrlRoot` defaults to https://manifold.markets/api when NODE_ENV
+   * is undefined or is set to "production" and to https://dev.manifold.markets/api
    * otherwise
    */
   constructor(
